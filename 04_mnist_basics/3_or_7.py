@@ -4,13 +4,17 @@ import webbrowser
 
 # download a sample of mnist data (3s and 7s)
 path = untar_data(URLs.MNIST_SAMPLE)
+'''
 print(path.ls())
 print((path/'train').ls())
+'''
 
 # saves and sorts the image names, shows top 10 of the 3s
 threes = (path/'train'/'3').ls().sorted()
 sevens = (path/'train'/'7').ls().sorted()
+'''
 print(threes[:10])
+'''
 
 # visualization of an image as data
 '''
@@ -35,16 +39,15 @@ webbrowser.open_new_tab(filename)
 '''
 
 # first try - pixel similarity
-# convert each image into a tensor, using Python List Comprehension (shorter syntax to create a new list based on the values of an existing list)
-# for every image in the list of sevens, open the image and convert it into a tensor. creates a list of tensors of our seven images.
 seven_tensors = [tensor(Image.open(o)) for o in sevens]
 three_tensors = [tensor(Image.open(o)) for o in threes]
+'''
 print(len(three_tensors),len(seven_tensors))
 show_image(three_tensors[1], cmap='binary')
 plt.show()
+'''
 
 # compute average of each pixel by stacking the tensors into a rank-3 tensor (3D tensor)
-# convert the tensors from int->float for averaging. divide by 255 so they're [0,1] instead of [0,255]
 stacked_sevens = torch.stack(seven_tensors).float()/255
 stacked_threes = torch.stack(three_tensors).float()/255
 
@@ -56,10 +59,46 @@ print(stacked_threes.ndim)          # rank of a tensor (ndim) = number of axes i
 '''
 
 # compute the "ideal" 3 and 7
-mean3 = stacked_threes.mean(0)  # computes mean on the "horizontal" direction; not a global mean of ALL values. in this case, mean contains 1 pixel per image for our heatmap
+mean3 = stacked_threes.mean(0) 
+mean7 = stacked_sevens.mean(0)
+'''
 show_image(mean3, cmap='binary')
 plt.show()
 
-mean7 = stacked_sevens.mean(0)
 show_image(mean7, cmap='binary')
 plt.show()
+'''
+
+# sample 3 and 7
+a_3 = stacked_threes[1]
+a_7 = stacked_sevens[1]
+
+# distance b/t a datapoint and the ideals
+dist3_abs = (a_3 - mean3).abs().mean()
+dist3_sqr = ((a_3 - mean3)**2).mean().sqrt()
+
+dist7_abs = (a_3 - mean7).abs().mean()
+dist7_sqr = ((a_3 - mean7)**2).mean().sqrt()
+
+'''
+print(dist3_abs, dist3_sqr)
+print(dist7_abs, dist7_sqr)
+print(F.l1_loss(a_3.float(), mean7), F.mse_loss(a_3, mean7).sqrt())
+'''
+
+# test pixel similarity method on validation set
+valid_3_tens = torch.stack([tensor(Image.open(o))
+                            for o in (path/'valid'/'3').ls()])
+valid_3_tens = valid_3_tens.float()/255
+
+valid_7_tens = torch.stack([tensor(Image.open(o))
+                            for o in (path/'valid'/'7').ls()])
+valid_7_tens = valid_3_tens.float()/255
+'''
+print(valid_3_tens.shape, valid_7_tens.shape)
+'''
+
+def mnist_distance(a,b): return (a-b).abs().mean((-1,-2))
+'''
+print(mnist_distance(a_3, mean3))
+'''

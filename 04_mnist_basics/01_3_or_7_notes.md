@@ -1,6 +1,4 @@
-# Notes for 3_or_7.py
-
-## Download and Visualize Data
+# Download and Visualize Data
 
 We begin by downloading a sample of mnist's data. This data is just images of 3s and 7s. We also print out the path which the data is contained.
 
@@ -52,9 +50,9 @@ filename = 'pixel_image.html'
 webbrowser.open_new_tab(filename)
 ```
 
-## Attempting to Classify the Images
+# Attempting to Classify the Images
 
-### Pixel Similarity
+## Pixel Similarity
 
 In this attempt, we will try to create a rough estimate for what a three and a seven should look like, based on the data that we were given. Then, we will compare our test data with that average three/seven, and see how close they are; the closer they are, the more likely it is that they are the three or seven.
 
@@ -119,7 +117,7 @@ We don't have to since fastai makes it available under that name by default.
 - `F.l1_loss` obviously refers the L1 norm, or mean absolute error in this case. 
 - `F.mse_loss` refers to the mean squared error, which we then follow up with a square root to get our root mean sqaured error (RMSE).
 
-### Computing Metrics Using Broadcasting
+## Computing Metrics Using Broadcasting
 
 At this point, we're looking to test our model against some data it's never seen. Of course, for the pixel similarity method, we dont' really need a validation set since there's no actual training happening. Still, we'll follow these practices (and we'll eventually need to do it with trained models in the future).
 
@@ -140,6 +138,45 @@ We will eventually need a function that we can call to measure the distance betw
 
 `def mnist_distance(a,b): return (a-b).abs().mean((-1,-2))`
 
-The `(-1,-2)` ordered pair is important. The mean function can calcuate mean in various ways; by passing an `int` or `tuple of ints`, mean will pick the given dimension(s) to reduce. In this particular case, the function will get the mean ranging over the values indexed by the last and second to last axes of the tensor; for an image, this the horizontal and vertical dimensions.
+### Broadcasting
 
-If we did not, passing a stacked tensor containing all the images will generate one mean value. What we want is the distance between EACH image and the ideal, not the distance between all the images and the ideal together in one value.
+We'll come back to what the `(-1,-2)` tuple in `mean()` means after this. First, we should be concerned about how to get the distance between every element in the validation set and the ideal image. We could use a for loop, calculating the distance between each image in the set in our stacked tensor withe ideal image - or we could just pass in that stacked tensor:
+
+```
+valid_3_dist = mnist_distance(valid_3_tens, mean3)
+print(valid_3_dist, valid_3_dist.shape)
+```
+
+This prints out a tensor that is the exact size of the stacked tensor - no for loop required! How? PyTorch uses a method called broadcasting. When subtraction between two tensors of different ranks occurs, PyTorch automatically expands the tensor with the smaller rank to match the tensor of the larger rank - this makes tensor code easier to write.
+
+![broadcasting](broadcasting.png)
+
+Note that PyTorch isn't actually allocating memory to create a larger-ranked tensor from the smaller-ranked tensor; that's wholly unnecessary. The operation we defined above allows us to pretend that we're working with two tensors of the same rank without creating a new tensor of that larger rank.
+
+### What the `mean()` Doing?
+
+The `(-1,-2)` ordered pair is important. Note that eventually, we will be computing the distance between our entire validation set of images to the ideal image; that entails passing a rank-3 tensor. If we were to just compute the distance, `mean` would get the mean distances of all the images in the validation set, then calculate the mean of all those distances, returning one value. What we want is a vector of the distances between each image in the set and the ideal image.
+
+To communicate that, `mean((-1,-2))` says to calculate the mean ranging over the values indexed by the last and second to last axes of the tensor. For our rank-3 tensor, that would be the horizontal and vertical dimensions, since it would be indexed as `(image number, horizontal pixel, vertical pixel)`, as given by `torch.shape`. So the tuple could be `(1,2)` or `(-1,-2)`; either way, we just need to tell the mean function to only get the mean out of each image. Here's an image to help visualize the function:
+
+![mean_function](mean_function.png)
+
+### Computing Accuracy
+
+Continuing on, we want to determine if an image is a 3 or a 7; a simple way to implement that is to compare the distance our sample is from the ideal 3 and 7, and say whatever label that sample is closer to is the label our sample should be - and thanks to broadcasting, we can pass in the full validation set, not just one element of it:
+
+```
+def is_3(x): return mnist_distance(x, mean3) < mnist_distance(x, mean7)
+print(is_3(a_3), is_3(a_3).float())
+print(is_3(valid_3_tens))
+```
+
+Now, all that remains is to calculate the accuracy of our simple model against the validation set:
+
+```
+accuracy_3s = is_3(valid_3_tens).float().mean()
+accuracy_7s = (1 - is_3(valid_7_tens).float()).mean()
+print(accuracy_3s, accuracy_7s, (accuracy_3s+accuracy_7s)/2)
+```
+
+Here we get accuracies in excess of 90%, so that's neat. But these are only two digits, and very distinct ones at that. Further on we'll investigate stochastic gradient descent, so our model can do some actual learning.

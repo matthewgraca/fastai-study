@@ -102,3 +102,20 @@ def mnist_distance(a,b): return (a-b).abs().mean((-1,-2))
 '''
 print(mnist_distance(a_3, mean3))
 '''
+
+'''
+valid_3_dist = mnist_distance(valid_3_tens, mean3)
+print(valid_3_dist, valid_3_dist.shape)
+'''
+
+def is_3(x): return mnist_distance(x, mean3) < mnist_distance(x, mean7)
+
+'''
+print(is_3(a_3), is_3(a_3).float())
+print(is_3(valid_3_tens))
+'''
+
+# calculate metrics
+accuracy_3s = is_3(valid_3_tens).float().mean()
+accuracy_7s = (1 - is_3(valid_7_tens).float()).mean()
+print(accuracy_3s, accuracy_7s, (accuracy_3s+accuracy_7s)/2)

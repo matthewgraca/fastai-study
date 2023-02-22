@@ -149,7 +149,7 @@ print(valid_3_dist, valid_3_dist.shape)
 
 This prints out a tensor that is the exact size of the stacked tensor - no for loop required! How? PyTorch uses a method called broadcasting. When subtraction between two tensors of different ranks occurs, PyTorch automatically expands the tensor with the smaller rank to match the tensor of the larger rank - this makes tensor code easier to write.
 
-![broadcasting](broadcasting.png)
+![broadcasting](images/broadcasting.png)
 
 Note that PyTorch isn't actually allocating memory to create a larger-ranked tensor from the smaller-ranked tensor; that's wholly unnecessary. The operation we defined above allows us to pretend that we're working with two tensors of the same rank without creating a new tensor of that larger rank.
 
@@ -159,7 +159,7 @@ The `(-1,-2)` ordered pair is important. Note that eventually, we will be comput
 
 To communicate that, `mean((-1,-2))` says to calculate the mean ranging over the values indexed by the last and second to last axes of the tensor. For our rank-3 tensor, that would be the horizontal and vertical dimensions, since it would be indexed as `(image number, horizontal pixel, vertical pixel)`, as given by `torch.shape`. So the tuple could be `(1,2)` or `(-1,-2)`; either way, we just need to tell the mean function to only get the mean out of each image. Here's an image to help visualize the function:
 
-![mean_function](mean_function.png)
+![mean_function](images/mean_function.png)
 
 ### Computing Accuracy
 

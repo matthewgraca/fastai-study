@@ -54,7 +54,7 @@ def f(x): return (x**2).sum()
 print(yt)
 ```
 
-`tensor([  9.,  16., 100.], grad_fn=<PowBackward0>)`
+`tensor(125., grad_fn=<SumBackward0>)`
 
 This is because `backward()` by default only works on scalar outputs - this is because the expected out is a scalar loss function. This makes more sense if you understand the chain rule and the computational graph implementation, so that's beyond the scope of this simple explanation.
 

@@ -95,13 +95,9 @@ Suppose we're attempting to model the velocity curve of a rollercoaster approach
 descending a hill. We'll model our speed off of a quadratic equation, with added noise.
 
 ```python
-# suppose we are trying to model velocity of a rollercoaster, given our recorded data points
+# suppose we are trying to model velocity, given our recorded data points from [0, 20)
 time = torch.arange(0,20).float();
-print(time)
-```
-`tensor([ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9., 10., 11., 12., 13., 14., 15., 16., 17., 18., 19.])`
 
-```python
 # model speed off of a quadratic equation, with some added noise
 speed = torch.randn(20)*3 + 0.75*(time-9.5)**2 + 1
 plt.scatter(time,speed)
@@ -134,12 +130,14 @@ def mse(preds, targets): return ((preds-targets)**2).mean()
 
 ### Initialize parameters
 Since this is our first run, we'll just make a guess using random parameters; ensure that 
-we mark this tensor as requiring gradients.
+we mark this tensor as requiring gradients. We're also going to save these original parameters 
+to use for visualization plots later down the line.
 
 ```python
 # step 1: random init
 # generate 3 random nums as a tensor, then mark to track gradients
 params = torch.randn(3).requires_grad_()
+orig_params = params.clone() # used later for plots
 ```
 
 ### Calculate predictions
@@ -159,10 +157,10 @@ We compare how far off the guess was from the true solution:
 ```python
 # step 3 calc loss
 loss = mse(preds, speed)
-print(loss)
+print('loss b/t true and initial prediction:', loss)
 ```
 
-`tensor(25823.8086, grad_fn=<MeanBackward0>)`
+`loss b/t true and initial prediction: tensor(25823.8086, grad_fn=<MeanBackward0>)`
 
 ### Calculate gradients
 Now, we need to know where our initial guess should go to get closer the the true solution: 
@@ -170,7 +168,7 @@ Now, we need to know where our initial guess should go to get closer the the tru
 ```python
 # step 4 calc gradients
 loss.backward()
-print(params.grad)
+print('params.grad:', params.grad)
 ```
 
 `tensor([-53195.8594,  -3419.7146,   -253.8908])`
@@ -178,12 +176,12 @@ print(params.grad)
 We also need to establish a learning rate. For now, we'll pick `1e-5`, or `0.00001`:
 
 ```python
-print(params.grad * 1e-5)
-print(params)
+print('params.grad * learning rate:', params.grad * 1e-5)
+print('params:', params)
 ```
-`tensor([-0.5320, -0.0342, -0.0025])`
+`params.grad * learning rate: tensor([-0.5320, -0.0342, -0.0025])`
 
-`tensor([-0.7658, -0.7506,  1.3525], requires_grad=True)`
+`params: tensor([-0.7658, -0.7506,  1.3525], requires_grad=True)`
 
 ### Step the weights
 Now that we know how far away our guess was from the true quadratic function AND what direction 
@@ -201,3 +199,101 @@ In fact, you might be wondering why `backward()` was called on the loss function
 `f`, the actual predicting function. Indeed, loss is actually a composition of functions 
 `loss = mse(f(t, params))`. As such, PyTorch uses the chain rule to calculate the gradients 
 w.r.t. `params`, because we marked it as requiring gradients!
+
+Now, we'll use these new params on our quadratic function, and check the loss.
+
+```python
+preds = f(time, params)
+print('mse b/t true and new prediction:', mse(preds, speed))
+show_preds(preds)
+plt.show()
+```
+
+`mse b/t true and new prediction: tensor(5435.5366, grad_fn=<MeanBackward0>)`
+
+![second_guess](images/second_guess_velocity.png)
+
+Now that we know how the step works, we'll craft a function that does exactly that, since we'll 
+be using it a few times to improve loss.
+
+```python
+# function to step more times
+def apply_step(params, prnt=True):
+    preds = f(time, params)
+    loss = mse(preds, speed)
+    loss.backward()
+    params.data -= lr * params.grad.data
+    params.grad = None
+    if prnt: print('loss:', loss.item())
+    return preds
+```
+
+To recap, we use our parameters craft a new quadratic function. We calculate the difference 
+between the new function and the true function, and calculate the gradients w.r.t. the parameters 
+so that our gradients point to the direction of the true function. We update our parameters 
+to move in that direction, but with a controlled learning rate. We reset the gradients so they 
+are recalculated by PyTorch, print out the loss of this new function, and return the prediction 
+that was based off of the initial parameters passed into `apply_step`.
+
+One thing to note is that the contents of the `param` tensor DOES change despite being in a 
+function. The `param` reference doesn't change, but the values contained in that reference do.
+
+### Repeat
+At this point we're just going to repeat the prediction, loss calculation, gradient calculation, 
+and weight stepping process for the next 10 iterations.
+
+```python
+# step 6 repeat
+print('\nrepeat step')
+for i in range(10): 
+    print('step', i,':', 'current params:', params) 
+    apply_step(params)
+```
+```
+repeat step
+step 0 : current params: tensor([-0.5714, -0.1194, -1.2677], requires_grad=True)
+loss: 15462.8564453125
+step 1 : current params: tensor([-0.1637, -0.0933, -1.2657], requires_grad=True)
+loss: 3486.992919921875
+step 2 : current params: tensor([ 0.0137, -0.0819, -1.2647], requires_grad=True)
+loss: 1220.79150390625
+step 3 : current params: tensor([ 0.0908, -0.0770, -1.2642], requires_grad=True)
+loss: 791.9537963867188
+step 4 : current params: tensor([ 0.1244, -0.0749, -1.2638], requires_grad=True)
+loss: 710.8018798828125
+step 5 : current params: tensor([ 0.1390, -0.0739, -1.2636], requires_grad=True)
+loss: 695.4423828125
+step 6 : current params: tensor([ 0.1453, -0.0736, -1.2634], requires_grad=True)
+loss: 692.5330810546875
+step 7 : current params: tensor([ 0.1481, -0.0734, -1.2632], requires_grad=True)
+loss: 691.9796752929688
+step 8 : current params: tensor([ 0.1493, -0.0733, -1.2630], requires_grad=True)
+loss: 691.8720092773438
+step 9 : current params: tensor([ 0.1498, -0.0733, -1.2628], requires_grad=True)
+loss: 691.8487548828125
+```
+
+We can also visualize the quadratic equations our process is producing like so:
+
+```python
+# use original params for better visuals, since after 10 steps there's not much change to be seen
+params = orig_params.detach().requires_grad_()  
+
+_,axs = plt.subplots(1,4,figsize=(12,3))
+for ax in axs: show_preds(apply_step(params, False), ax)
+plt.tight_layout()
+plt.show()
+```
+![visualize_steps](images/step_plots.png)
+
+### Stop
+For this example, we arbitrarily decide to stop after 10 steps (instead of, say, waiting for a max 
+time or reaching a specific loss value).
+
+## Summary
+We wanted a model that best approximates our velocity curve. We arbitrarily chose a quadratic 
+function, and picked randomized weights (parameters). We defined a loss function that tells us 
+how close our guess was to the actual function, and calculated the gradient of this loss function 
+the point our weights in the direction of the true function. After updating our weights, we 
+continue this process until we decide to stop; leaving us with a quadratic equation that is much 
+closer to the true function than our initial guess.

@@ -246,17 +246,28 @@ our model can do some actual learning.
 Recall that our data is currently formatted as a list of matrices, via `stacked_threes` and 
 `stacked_sevens`. We need to convert this list of matrices into a list of vectors; this process 
 of converting an `m x n` matrix to a `mn x 1` column vector is called **vectorization**, which 
-stacks the columns of a matrix on top of each other. This makes for faster computation because 
-matrix multiplication would require for-loops, rendering the computation serial. 
+stacks the columns of a matrix on top of each other. 
+This makes for faster computation because matrix multiplication would require for-loops. 
 But with two vectors, we can just compute the product between the vector of weights and the 
 vector of inputs, which is a job that is incredibly easy to parallelize. 
 [[1]](https://medium.com/@jwbtmf/vectorization-in-deep-learning-c47f0d171d0a)
+
+More on vectorization:
+
+>Basically, between python for loop and vectorized numpy arrays, the for loop is in raw python 
+>that gets interpreted; loops assess the type of the operands at each iteration, which 
+>introduces a severe amount of computational overhead. Meanwhile, numpy uses BLAS (basic linear 
+>algebra subprograms) written in c/fortran that has incredibly optimized and low-level linear 
+>algebra operations. Finally, vector operations can also be done in parallel using the SIMD 
+>paradigm, further introducing performance gains unaccessible to raw python for loops.
+>[[2]](https://www.r-bloggers.com/2018/05/machine-learning-explained-vectorization-and-matrix-operations/) 
+>[[3]](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms)
 
 ```python
 train_x = torch.cat([stacked_threes, stacked_sevens]).view(-1, 28*28)
 ```
 
-We collect our training data under `train_x`, where we create a tensor with `stacked_threes` 
+Continuing on, we collect our training data under `train_x`, where we create a tensor with `stacked_threes` 
 concatenated with `stacked_sevens`. The `view(-1, 28*28)` function reshapes/vectorizes this tensor, 
 with `-1` denoting "make this axis as large as necessary to fit the data". The result is 
 a list of vectors; in this case, a tensor of the shape `(12396, 784)`, denoting 12396 images, each 

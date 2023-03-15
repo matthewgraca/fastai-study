@@ -118,4 +118,13 @@ print(is_3(valid_3_tens))
 # calculate metrics
 accuracy_3s = is_3(valid_3_tens).float().mean()
 accuracy_7s = (1 - is_3(valid_7_tens).float()).mean()
+'''
 print(accuracy_3s, accuracy_7s, (accuracy_3s+accuracy_7s)/2)
+'''
+
+# mnist loss function
+train_x = torch.cat([stacked_threes, stacked_sevens]).view(-1, 28*28)
+train_y = tensor([1]*len(threes) + [0]*len(sevens)).unsqueeze(1)
+print(tensor([1]*len(threes) + [0]*len(sevens)))
+print(train_y)
+print(train_x.shape, train_y.shape)

@@ -240,3 +240,42 @@ print(accuracy_3s, accuracy_7s, (accuracy_3s+accuracy_7s)/2)
 Here we get accuracies in excess of 90%, so that's neat. But these are only two digits, and 
 very distinct ones at that. Further on we'll investigate stochastic gradient descent, so 
 our model can do some actual learning.
+
+# MNIST Loss Function
+
+Recall that our data is currently formatted as a list of matrices, via `stacked_threes` and 
+`stacked_sevens`. We need to convert this list of matrices into a list of vectors; this process 
+of converting an `m x n` matrix to a `mn x 1` column vector is called **vectorization**, which 
+stacks the columns of a matrix on top of each other. This makes for faster computation because 
+matrix multiplication would require for-loops, rendering the computation serial. 
+But with two vectors, we can just compute the product between the vector of weights and the 
+vector of inputs, which is a job that is incredibly easy to parallelize. 
+[[1]](https://medium.com/@jwbtmf/vectorization-in-deep-learning-c47f0d171d0a)
+
+```python
+train_x = torch.cat([stacked_threes, stacked_sevens]).view(-1, 28*28)
+```
+
+We collect our training data under `train_x`, where we create a tensor with `stacked_threes` 
+concatenated with `stacked_sevens`. The `view(-1, 28*28)` function reshapes/vectorizes this tensor, 
+with `-1` denoting "make this axis as large as necessary to fit the data". The result is 
+a list of vectors; in this case, a tensor of the shape `(12396, 784)`, denoting 12396 images, each 
+as a vector of 784 pixels.
+
+Of course, we also need to label the data; we'll choose `1` for threes and `0` for sevens.
+
+```python
+train_y = tensor([1]*len(threes) + [0]*len(sevens)).unsqueeze(1)
+```
+
+Decoding this python nonsense, `[1]*len(threes)` generates a list of size `len(threes)` whose 
+elements are initialized to `1`. The addition of `[0]*len(sevens)` concatenates that list with a 
+list of size `len(sevens)` whose elements are initialized to `0`. The next function, 
+`unsqueeze(1)`, adds a dimension of size 1 at index 1, converting our list of 12396 into a 
+proper tensor of shape `[12396, 1]`, matching the rank of our training data.
+
+```python
+print(train_x.shape, train_y.shape)
+```
+
+`torch.Size([12396, 784]) torch.Size([12396, 1])`

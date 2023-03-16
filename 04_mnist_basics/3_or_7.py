@@ -123,8 +123,45 @@ print(accuracy_3s, accuracy_7s, (accuracy_3s+accuracy_7s)/2)
 '''
 
 # mnist loss function
+# vectorize data and prepare labels for training set
 train_x = torch.cat([stacked_threes, stacked_sevens]).view(-1, 28*28)
 train_y = tensor([1]*len(threes) + [0]*len(sevens)).unsqueeze(1)
+'''
 print(tensor([1]*len(threes) + [0]*len(sevens)))
 print(train_y)
 print(train_x.shape, train_y.shape)
+'''
+
+# create a list of pairs; (image, label)
+dset = list(zip(train_x, train_y))
+x,y = dset[0]
+'''
+print(x.shape, y)
+'''
+
+# vectorize and prepare labels for validation set
+valid_x = torch.cat([valid_3_tens, valid_7_tens]).view(-1, 28*28)
+valid_y = tensor([1]*len(valid_3_tens) + [0]*len(valid_7_tens)).unsqueeze(1)
+valid_dset = list(zip(valid_x, valid_y))
+
+# begin sgd
+
+# init random parameters
+def init_params(size, std=1.0): return (torch.randn(size)*std).requires_grad_()
+weights = init_params((28*28, 1))
+bias = init_params(1)
+
+# predict (for one image)
+'''
+print((train_x[0]*weights.T).sum() + bias)
+'''
+
+# predictions for all of the training data
+def linear1(xb): return xb@weights + bias
+preds = linear1(train_x)
+print(preds)
+
+# check accuracy of predictions
+corrects = (preds>0.0).float() == train_y
+print(corrects)
+print(corrects.float().mean().item())

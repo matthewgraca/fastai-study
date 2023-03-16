@@ -243,6 +243,8 @@ our model can do some actual learning.
 
 # MNIST Loss Function
 
+## Preparing the data and their labels
+
 Recall that our data is currently formatted as a list of matrices, via `stacked_threes` and 
 `stacked_sevens`. We need to convert this list of matrices into a list of vectors; this process 
 of converting an `m x n` matrix to a `mn x 1` column vector is called **vectorization**, which 
@@ -267,11 +269,11 @@ More on vectorization:
 train_x = torch.cat([stacked_threes, stacked_sevens]).view(-1, 28*28)
 ```
 
-Continuing on, we collect our training data under `train_x`, where we create a tensor with `stacked_threes` 
-concatenated with `stacked_sevens`. The `view(-1, 28*28)` function reshapes/vectorizes this tensor, 
-with `-1` denoting "make this axis as large as necessary to fit the data". The result is 
-a list of vectors; in this case, a tensor of the shape `(12396, 784)`, denoting 12396 images, each 
-as a vector of 784 pixels.
+Continuing on, we collect our training data under `train_x`, where we create a tensor with 
+`stacked_threes` concatenated with `stacked_sevens`. The `view(-1, 28*28)` function 
+reshapes/vectorizes this tensor, with `-1` denoting "make this axis as large as necessary to fit 
+the data". The result is a list of vectors; in this case, a tensor of the shape `(12396, 784)`, 
+denoting 12396 images, each as a vector of 784 pixels.
 
 Of course, we also need to label the data; we'll choose `1` for threes and `0` for sevens.
 
@@ -290,3 +292,90 @@ print(train_x.shape, train_y.shape)
 ```
 
 `torch.Size([12396, 784]) torch.Size([12396, 1])`
+
+We'll match the training data with the training labels, by forming a pair between each image 
+and label in the form `(image, label)`, which can be done using the `zip()` function. We then 
+store each of these pairs into a list called `dset` using `list()`. 
+Recall that each image was vectorized into vectors of size 784, and that a label is either 1 or 0. 
+So each pair will be a rank 1 tensor of size 784 of values from 0 to 1, and a rank 0 tensor of 
+value either 0 or 1.
+
+```python
+dset = list(zip(train_x, train_y))
+x,y = dset[0]
+print(x.shape, y)
+```
+
+`torch.Size([784]) tensor([1])`
+
+Finally, we'll prepare the validation set and their labels in the same manner as above.
+
+```python
+valid_x = torch.cat([valid_3_tens, valid_7_tens]).view(-1, 28*28)
+valid_y = tensor([1]*len(valid_3_tens) + [0]*len(valid_7_tens)).unsqueeze(1)
+valid_dset = list(zip(valid_x, valid_y))
+```
+
+## SGD
+
+Now we'll begin the stochastic gradient descent process. First, we'll need to randomly 
+initialize our weights for every pixel.
+
+### init
+
+Recall that on top of initializing random weights, we also need to inclue a bias 
+`y = mx + b` since `weights * pixels` alone is not flexible enough, since it will always be 
+0 if the pixels are 0. Together, the *weights* and the *bias* make up the *parameters*.
+
+```python
+def init_params(size, std=1.0): return (torch.randn(size)*std).requires_grad_()
+weights = init_params((28*28, 1))
+bias = init_params(1)
+```
+
+### predict
+
+First, let's see a prediction for a single image in our training set.
+
+```python
+print((train_x[0]*weights.T).sum() + bias)
+```
+
+`tensor([13.4192], grad_fn=<AddBackward0>)`
+
+Here `weights.T` is just the transpose of `weights`, converting the column vector into a row 
+vector. That way, we're doing element-wise vector multiplication.
+
+Now, there is a temptation to use for loops to calculate the predictions for all the images 
+in the training data. However, we're talking about python here - this is a huge mistake. We 
+want to convert this into a matrix multiplication problem and let BLAS do the work (see the 
+previous discussion above on vectorization).
+
+```python
+def linear1(xb): return xb@weights + bias
+preds = linear1(train_x)
+print(preds)
+```
+
+```
+tensor([[13.4192],
+        [ 8.3099],
+        [18.2619],
+        ...,
+        [13.6045],
+        [ 9.9905],
+        [17.1171]], grad_fn=<AddBackward0>)
+```
+
+This equation, `batch @ weights + bias`, is one of the two fundamental equations of any neural 
+network, so it's worth understanding to the fullest.
+
+Using broadcasting, we can also check the accuracy of our predictions:
+
+```python
+corrects = (preds>0.0).float() == train_y
+print(corrects)
+print(corrects.float().mean().item())
+```
+
+

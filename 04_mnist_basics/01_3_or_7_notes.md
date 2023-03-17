@@ -58,6 +58,8 @@ filename = 'pixel_image.html'
 webbrowser.open_new_tab(filename)
 ```
 
+![pixels](images/3_pixels.png)
+
 # Attempting to Classify the Images
 
 ## Pixel Similarity

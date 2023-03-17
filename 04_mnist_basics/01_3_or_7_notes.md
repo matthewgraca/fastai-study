@@ -595,3 +595,194 @@ print(list(dl))
 ```
 
 # Fully implementing gradient descent
+
+## What happens at each epoch
+
+The goal of this section is to implement the gradient descent process; or defining what 
+happens at each epoch. We want something like this: 
+
+```python
+for x,y in dl:
+  pred = model(x)                     # predict
+  loss = loss_func(pred, y)           # calc loss
+  loss.backward()                     # calc gradients of loss func
+  parameters -= parameters.grad * lr  # update parameters, given some learning rate
+```
+
+To get here, we'll start by initializing our parameters:
+
+```python
+weights = init_params((28*28,1))
+bias = init_params(1)
+```
+
+Then, we'll collect our training and validation data into DataLoader batches:
+
+```python
+dl = DataLoader(dset, batch_size=256)
+valid_dl = DataLoader(valid_dset, batch_size=256)
+
+xb,yb = first(dl) 
+print(xb.shape, yb.shape)
+```
+
+`torch.Size([256, 784]) torch.Size([256, 1])`
+
+Here we pass in the training dataset, and tell `DataLoaders` to put the images in batches of 
+size 256. Recall that `dset` is a list of pairs of vectorized images and labels. By 
+using `fastcore.basics.first()` we get the first element in our `DataLoaders` object, and 
+find that each element is a pair with 256 vectorized images and 256 labels.
+
+Now, we'll do a mini-batch size of 4 to test:
+
+```python
+batch = train_x[:4]
+print(batch.shape)
+
+preds = linear1(batch)
+print(preds)
+
+loss = mnist_loss(preds, train_y[:4])
+print(loss)
+
+loss.backward()
+print(weights.grad.shape, weights.grad.mean(), bias.grad)
+```
+
+```
+torch.Size([4, 784])
+tensor([[14.0882],
+        [13.9915],
+        [16.0442],
+        [17.7304]], grad_fn=<AddBackward0>)
+tensor(4.1723e-07, grad_fn=<MeanBackward0>)
+torch.Size([784, 1]) tensor(-5.9512e-08) tensor([-4.1723e-07])
+```
+
+Here, we:
+- Made a batch size of 4 with the training data
+- Performed predictions on this batch with our randomly initialized weights and bias
+- Calculated the loss of these predictions
+- Calculated the gradients of our loss function w.r.t. the parameters
+
+Since we'll be doing this once per epoch across many epochs, we'll make a function out of this 
+process:
+
+```python
+def calc_grad(xb, yb, model):
+    preds = model(xb)
+    loss = mnist_loss(preds, yb)
+    loss.backward()
+```
+
+Testing it, we notice that if you call `calc_grad()` more than once, the gradients change 
+despite the function and the inputs not changing at all.
+
+```python
+calc_grad(xb, yb, linear1)
+print(weights.grad.mean(), bias.grad)
+
+calc_grad(xb, yb, linear1)
+print(weights.grad.mean(), bias.grad)
+```
+
+```
+tensor(-0.0035) tensor([-0.0273])
+tensor(-0.0069) tensor([-0.0546])
+```
+
+This is because `loss.backward()` adds the gradients of loss to the currently stored gradients. 
+So for subsequent calls, we'll have to make sure to reset the stored gradient values using 
+these lines:
+
+```python
+weights.grad.zero_()
+bias.grad.zero_()
+```
+
+To round out our basic training loop for an epoch, we'll have to update the weights and 
+biases based on the gradient and learning and ensure we reset the gradients right after: 
+
+```python
+def train_epoch(model, lr, params):
+    for xb,yb in dl:
+        calc_grad(xb, yb, model)
+        for p in params:
+            p.data -= p.grad * lr
+            p.grad.zero_()
+```
+
+That is for each epoch, we:
+- For each item in the batch, calculate the gradients (predict, loss, gradient)
+- Then for every parameter in that item, update the weights (based on gradient and learning rate), 
+then reset the gradients
+
+Now we'll take on calculating accuracy and validating each epoch. On our mini-batch, it would 
+be:
+
+```python
+print((preds>0.0).float() == train_y[:4])
+```
+
+```
+tensor([[True],
+        [True],
+        [True],
+        [True]])
+```
+
+As a function, we want to transform the predictions to conform to a sigmoid function, 
+check the correct predictions, then return the mean: 
+
+```python
+def batch_accuracy(xb, yb):
+    preds = xb.sigmoid()
+    correct = (preds>0.5) == yb
+    return correct.float().mean()
+
+print(batch_accuracy(linear1(batch), train_y[:4]))
+```
+
+`tensor(1.)`
+
+Combining the accuracies of the batches together, we get this function:
+
+```python
+def validate_epoch(model):
+    accs = [batch_accuracy(model(xb), yb) for xb,yb in valid_dl]
+    return round(torch.stack(accs).mean().item(), 4)
+
+print(validate_epoch(linear1))
+```
+
+`0.9697`
+
+That is, make a list of tensors of batch accuracies for every batch. Get the list, stack all 
+the tensors into one tensor of accuracies, get the mean of all the accuracies, cast it into 
+a Python number, and round it to 4 decimal places.
+
+Finally, we'll train for a few epochs and see what happens:
+
+```python
+lr = 1.
+params = weights,bias
+train_epoch(linear1, lr, params)
+print(validate_epoch(linear1))
+
+for i in range(20):
+    train_epoch(linear1, lr, params)
+    print(validate_epoch(linear1), end=' ')
+print()
+```
+
+```
+0.7344
+0.8687 0.9229 0.9429 0.9526 0.9595 0.9678 0.9707 0.9761 0.979 0.9805 0.9814 0.9819 0.9854 0.9854 0.9854 0.9858 0.9868 0.9868 0.9868 0.9873 
+```
+
+So we got our expected result - as we train our model, the accuracy of it improves!
+
+## Creating an optimizer
+
+This process is both fundamental and foundational - so it's no surprise that PyTorch already 
+has some helpers for us to use to simplify our code.

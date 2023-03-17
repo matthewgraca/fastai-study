@@ -341,7 +341,7 @@ First, let's see a prediction for a single image in our training set.
 print((train_x[0]*weights.T).sum() + bias)
 ```
 
-`tensor([13.4192], grad_fn=<AddBackward0>)`
+`tensor([-6.2330], grad_fn=<AddBackward0>)`
 
 Here `weights.T` is just the transpose of `weights`, converting the column vector into a row 
 vector. That way, we're doing element-wise vector multiplication.
@@ -358,24 +358,238 @@ print(preds)
 ```
 
 ```
-tensor([[13.4192],
-        [ 8.3099],
-        [18.2619],
+tensor([[ -6.2330],
+        [-10.6388],
+        [-20.8865],
         ...,
-        [13.6045],
-        [ 9.9905],
-        [17.1171]], grad_fn=<AddBackward0>)
+        [-15.9176],
+        [ -1.6866],
+        [-11.3568]], grad_fn=<AddBackward0>)
+
 ```
 
 This equation, `batch @ weights + bias`, is one of the two fundamental equations of any neural 
 network, so it's worth understanding to the fullest.
 
-Using broadcasting, we can also check the accuracy of our predictions:
+Using broadcasting (no loops), we can also check the accuracy of our predictions:
 
 ```python
 corrects = (preds>0.0).float() == train_y
+```
+
+That is, get our tensor of predictions; for every element greater than 0, mark it as true; else 
+mark it as false. Then convert those T/F values into floats, or 1.0/0.0, and mark it as true 
+if it matches the corresponding element value in `train_y`. The result is a tensor of T/F 
+values, where true means the prediction for that image was correct, false if otherwise. In other 
+words, a tensor of prediction accuracies.
+
+```python
 print(corrects)
+```
+
+```
+tensor([[False],
+        [False],
+        [False],
+        ...,
+        [ True],
+        [ True],
+        [ True]])
+```
+
+We then get the tensor of prediction accuracies, convert their elements to float, get the mean of 
+the tensor, giving us a scalar. We use `item()` to convert a scalar tensor into a standard Python 
+number - in this case, the accuracy of the model's predictions as a whole.
+
+```python
 print(corrects.float().mean().item())
 ```
 
+```
+0.5379961133003235
+```
 
+Here, we'll see what changes to one weight does to the accuracy:
+
+```python
+with torch.no_grad(): weights[0] *= 1.0001
+preds = linear1(train_x)
+print(((preds>0.0).float() == train_y).float().mean().item())
+```
+
+```
+0.5379961133003235
+```
+
+>Note that we don't need to recalculate gradients here since we're just testing a weight change, 
+>not doing the process of getting gradients to find out where our weights should be moved.
+
+### loss (that gradient is calculated on)
+
+Now that we can make predictions, we need to create a loss function that measures how good 
+our weights are at producing results, that we can then calculate gradients on.
+
+We already have accuracy as our metric, and it would be reasonable to assume it would make for 
+a good loss function. However, the issue is accuracy is binary - the model either gets the 
+solution or it doesn't - there is no concept of "getting closer" to the solution, but 
+falling short, while recognizing we're going in the right direction. It's like if a professor 
+graded your test by marking the wrong answers, without giving explanations for why you got 
+something wrong. In the context of our loss function, that would essentially mean that 
+such change to weights don't really change the loss function's curve; that is, our 
+gradient is 0 almost everywhere. Much like how you can't learn from a test that is marked without 
+explanations, the model will not be able to learn if different weight values don't change the 
+loss curve.
+
+>Mathematically the loss function with the accuracy metric would look like a step function; the 
+>derivative at any point is either 0 or infinity. If the derivative is 0, then we don't know if 
+>we should increase or decrease the weights to get a minimum.
+
+So instead of a binary yes/no prediction, we'll turn to probabilities to craft our loss 
+function. Fundamentally, a loss function is meant to measure the "distance" between a 
+prediction and reality. Instead of 0 and 1 prediction for our image, what if we instead 
+had a confidence interval? For example, instead of guessing if an image is a 3, the model 
+instead gave a number between 0 and 1 that represents *confidence* that the image is a 3. 
+That is, a model giving 0.75 for an image means it's more confident it's a 3 than an image 
+marked as 0.25.
+
+Let's take a shot at defining a loss function of this kind:
+
+```python
+trgts = tensor([1,0,1])
+prds = tensor([0.9,0.4,0.2])
+
+def mnist_loss(predictions, targets):
+    return torch.where(targets==1, 1-predictions, predictions).mean()
+```
+
+Here `trgts` represents if the image is actually a 3 or a 7. Then `prds` would be the alleged 
+predictions on what the images are in terms of how confident it is. So for the first image the 
+model is 90% confident it's a 3, but for the 3rd image it's only 20% confident.
+
+As for `torch.where(a,b,c)`, this function is the same as Python's list comprehension, 
+except done on tensors using C/CUDA speed. That is, this is the same as the piecewise function:  
+
+`myList[i] = b[i] if a[i]==True else c[i] for i in range(len(a))`. 
+[[4]](https://pytorch.org/docs/stable/generated/torch.where.html)
+
+In the context of our loss function, we're telling PyTorch to make a tensor whose elements are 
+`1-prds[i]` if `trgts[i]==1`, else use `prds[i]`. We write our tensor like this because we 
+want to have each element be the distance from 0 if it should be 0, and the distance from 1 if 
+it should be 1, so now we achieved our goal of getting the elements of the tensor to show the 
+distance between the prediction and the target, not distance between only 0 or only 1.
+
+```python
+print(torch.where(trgts==1, 1-prds, prds))
+```
+`tensor([0.1000, 0.4000, 0.8000])`
+
+And of course, since the loss function is a multivariate function with one output, we return 
+the mean of these distances as a rank 0 tensor (scalar). We can also see that by moving the 
+third image prediction from 0.2->0.8 (closer to the target 1), that loss declines, as expected.
+
+```python
+print(mnist_loss(prds,trgts))
+print(mnist_loss(tensor([0.9,0.4,0.8]),trgts))
+```
+
+```
+tensor(0.4333)
+tensor(0.2333)
+```
+
+#### sigmoid
+
+While using confidence is nice, our current setup assumes that the predictions are between 
+0 and 1, which definitely not the case as you can see from the previous predictions that we 
+made. Thus we need to fit our predictions in such a manner that matches our expectations.
+
+To do this, we turn to the sigmoid function:
+
+```python
+# actual function
+def sigmoid(x): return 1/(1+torch.exp(-x))
+
+# using torch's implementation
+plot_function(torch.sigmoid, title='Sigmoid', min=-4, max=4)
+plt.show()
+```
+![sigmoid](images/sigmoid.png)
+
+Some important characteristics of this function includes: 
+- Output is in the range of 0 and 1
+- Output *saturates* when the input is very positive or negative; meaning at more extreme values 
+the function is flat and insensitive to change
+
+Applied to our loss function, we have:
+
+```python
+def mnist_loss(predictions, targets):
+    predictions = predictions.sigmoid()
+    return torch.where(targets==1, 1-predictions, predictions).mean()
+```
+
+To recap, we unearthed the difference between a good metric and a good loss function. A good 
+metric is human-readable and shows us how the model is performing, and a good loss function 
+is a measure of how well the model is performing + meaningful derivatives. In our case, metrics 
+as a loss function hid "progress" and can't help our model learn. Put simply, loss is for 
+learning and metrics are for judging.
+
+### step (optimization)
+
+Recall weights and input plus bias make the prediction, and the loss function is a measure 
+of how far the prediction is from reality. Our loss function can be generated using one input, 
+or perhaps loss can be calculated for the entire dataset and a point on the curve would be 
+the average of all those losses. However, both methods are dangerous.
+
+First, using only one data point to guide your loss function leaves you susceptible to 
+huge error - what if the data point you happen to choose is some terrible outlier? You 
+don't want to use these outliers to teach your model.
+
+Second, calculating the average loss over an entire data set is unteneable for large data 
+sets; it would simply take too long.
+
+So if 1 data point is too imprecise and all data points is too time-consuming, what is the 
+middle ground? Mini-batches provide the solution.
+
+Mini-batches are a sample of the data set, and we take calculate the average loss over this 
+sample. The larger the batch size, the more accurate the loss; but the more computation time 
+is required. 
+
+Your choice in hardware also determines how large your batch size can/needs to be. Ideally 
+you can choose a batch size that makes full use of your GPU, but doesn't exceed its memory 
+limitations.
+
+To select data for our mini-batches, we want random samples - so we use `DataLoaders` to 
+do shuffling and mini-batch collation, like so: 
+
+```python
+coll = range(15)
+dl = DataLoader(coll, batch_size=5, shuffle=True)
+print(list(dl))
+```
+
+`[tensor([ 3, 12,  8, 10,  2]), tensor([ 9,  4,  7, 14,  5]), tensor([ 1, 13,  0,  6, 11])]`
+
+Here we generated a list of numbers from 0 to 14, defined a batch size of 5 
+(so 3 batches of size 5), and shuffled the numbers.
+
+Another thing to mention is that we're not just using normal Python collections, but a 
+collection of independent variables (inputs) and dependent variables (targets) - so we'll 
+need the ability to have a collection of tuples containing our inputs and targets, managed 
+by PyTorch's `DataSet`. This `DataSet` object is then passed into a `DataLoader`; here's a 
+simple example with inputs as integers and targets as characters.
+
+```python
+ds = L(enumerate(string.ascii_lowercase))
+dl = DataLoader(ds, batch_size=6, shuffle=True)
+print(ds)
+print(list(dl))
+```
+
+```
+[(0, 'a'), (1, 'b'), (2, 'c'), (3, 'd'), (4, 'e'), (5, 'f'), (6, 'g'), (7, 'h'), (8, 'i'), (9, 'j'), (10, 'k'), (11, 'l'), (12, 'm'), (13, 'n'), (14, 'o'), (15, 'p'), (16, 'q'), (17, 'r'), (18, 's'), (19, 't'), (20, 'u'), (21, 'v'), (22, 'w'), (23, 'x'), (24, 'y'), (25, 'z')]
+
+[(tensor([17, 18, 10, 22,  8, 14]), ('r', 's', 'k', 'w', 'i', 'o')), (tensor([20, 15,  9, 13, 21, 12]), ('u', 'p', 'j', 'n', 'v', 'm')), (tensor([ 7, 25,  6,  5, 11, 23]), ('h', 'z', 'g', 'f', 'l', 'x')), (tensor([ 1,  3,  0, 24, 19, 16]), ('b', 'd', 'a', 'y', 't', 'q')), (tensor([2, 4]), ('c', 'e'))]
+```
+
+# Fully implementing gradient descent

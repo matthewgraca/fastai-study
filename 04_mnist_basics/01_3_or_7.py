@@ -1,4 +1,5 @@
 from fastai.vision.all import *
+from fastbook import * 
 import matplotlib.pyplot as plt
 import webbrowser
 
@@ -159,9 +160,61 @@ print((train_x[0]*weights.T).sum() + bias)
 # predictions for all of the training data
 def linear1(xb): return xb@weights + bias
 preds = linear1(train_x)
+'''
 print(preds)
+'''
 
 # check accuracy of predictions
 corrects = (preds>0.0).float() == train_y
+'''
 print(corrects)
 print(corrects.float().mean().item())
+'''
+
+# see effect of changing one weight
+with torch.no_grad(): weights[0] *= 1.0001
+preds = linear1(train_x)
+'''
+print(((preds>0.0).float() == train_y).float().mean().item())
+'''
+
+# first attempt loss function definition
+trgts = tensor([1,0,1])
+prds = tensor([0.9,0.4,0.2])
+
+'''
+def mnist_loss(predictions, targets):
+    return torch.where(targets==1, 1-predictions, predictions).mean()
+
+print(torch.where(trgts==1, 1-prds, prds))
+print(mnist_loss(prds,trgts))
+print(mnist_loss(tensor([0.9,0.4,0.8]),trgts))
+'''
+
+# sigmoid
+def sigmoid(x): return 1/(1+torch.exp(-x))
+plot_function(torch.sigmoid, title='Sigmoid', min=-4, max=4)
+'''
+plt.show()
+'''
+
+# second attempt at loss function definition
+def mnist_loss(predictions, targets):
+    predictions = predictions.sigmoid()
+    return torch.where(targets==1, 1-predictions, predictions).mean()
+
+# mini-batch demo
+coll = range(15)
+dl = DataLoader(coll, batch_size=5, shuffle=True)
+'''
+print(list(dl))
+'''
+ds = L(enumerate(string.ascii_lowercase))
+dl = DataLoader(ds, batch_size=6, shuffle=True)
+'''
+print(ds)
+print(list(dl))
+'''
+
+###
+# full implementation of gradient descent

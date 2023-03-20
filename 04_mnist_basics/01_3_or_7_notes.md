@@ -786,3 +786,104 @@ So we got our expected result - as we train our model, the accuracy of it improv
 
 This process is both fundamental and foundational - so it's no surprise that PyTorch already 
 has some helpers for us to use to simplify our code.
+
+### Using PyTorch
+
+To start off with, we can replace `init_params()` and `linear1()` with PyTorch's `nn.Linear` 
+module; we just need to pass in the shape of the parameters and the bias:
+
+```python
+linear_model = nn.Linear(28*28, 1)
+w,b = linear_model.parameters()
+print(w.shape,b.shape)
+```
+
+`torch.Size([1, 784]) torch.Size([1])`
+
+With `nn.Linear` we can make a basic optimizer, responsible for the step and zeroing gradients: 
+
+```python
+class BasicOptim:
+    def __init__(self, params, lr): self.params,self.lr = list(params), lr
+
+    def step(self, *args, **kwargs):
+        for p in self.params: p.data -= p.grad.data * self.lr
+
+    def zero_grad(self, *args, **kwargs):
+        for p in self.params: p.grad = None
+```
+
+Then we can simplify our `train_epoch()` function using the class we defined: 
+
+```python
+opt = BasicOptim(linear_model.parameters(), lr)
+
+def train_epoch(model):
+    for xb,yb in dl:
+        calc_grad(xb, yb, model)
+        opt.step()
+        opt.zero_grad()
+
+print(validate_epoch(linear_model))
+```
+
+`0.2129`
+
+In this case, `validate_epoch()` doesn't need to be changed at all.
+
+We'll then put our training loop in a function: 
+
+```python
+def train_model(model, epochs):
+    for i in range(epochs):
+        train_epoch(model)
+        print(validate_epoch(model), end=' ')
+    print()
+
+train_model(linear_model, 20)
+```
+
+`0.4932 0.8071 0.853 0.917 0.937 0.9502 0.9595 0.9668 0.9688 0.9712 0.9731 0.9746 0.9771 0.978 0.979 0.98 0.9805 0.981 0.981 0.9819`
+
+### Using fastai
+
+Here we can also use fastai, which provides an SGD class that does what our `BasicOptim` class 
+does:
+
+```python
+linear_model = nn.Linear(28*28, 1)
+opt = SGD(linear_model.parameters(), lr)
+train_model(linear_model, 20)
+```
+
+`0.4932 0.875 0.8291 0.9121 0.9355 0.9492 0.9585 0.9663 0.9692 0.9707 0.9722 0.9746 0.9771 0.978 0.979 0.979 0.9805 0.981 0.9814 0.9814`
+
+In fact, if we have our: 
+- Training and validation set in a DataLoaders object
+- Choice of optimizer from fastai
+- Loss function defined
+- Metrics function defined
+- Learning rate defined
+
+Then we can use fastai's `Learner` class to do it all; using `Learner.fit()` to replace 
+`train_model()`
+
+```python
+dls = DataLoaders(dl, valid_dl)
+learn = Learner(dls, nn.Linear(28*28, 1), opt_func=SGD, loss_func=mnist_loss, metrics=batch_accuracy)
+learn.fit(10, lr=lr)
+```
+
+```
+epoch     train_loss  valid_loss  batch_accuracy  time
+0         0.637435    0.278713    0.500000        00:00
+1         0.351899    0.532999    0.683663        00:00
+2         0.136168    0.369614    0.858911        00:00
+3         0.063544    0.307757    0.919307        00:00
+4         0.036521    0.279117    0.937624        00:00
+5         0.025754    0.261695    0.951980        00:00
+6         0.021192    0.249678    0.960396        00:00
+7         0.019066    0.240751    0.966832        00:00
+8         0.017919    0.233703    0.968812        00:00
+9         0.017185    0.227875    0.971287        00:00
+```

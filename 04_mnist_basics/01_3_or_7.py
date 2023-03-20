@@ -319,3 +319,54 @@ for i in range(20):
     print(validate_epoch(linear1), end=' ')
 print()
 '''
+
+# sgd with pytorch modules
+linear_model = nn.Linear(28*28, 1)
+w,b = linear_model.parameters()
+'''
+print(w.shape, b.shape)
+'''
+
+# creating optimizer
+class BasicOptim:
+    def __init__(self, params, lr): self.params,self.lr = list(params), lr
+
+    def step(self, *args, **kwargs):
+        for p in self.params: p.data -= p.grad.data * self.lr
+
+    def zero_grad(self, *args, **kwargs):
+        for p in self.params: p.grad = None
+
+opt = BasicOptim(linear_model.parameters(), lr)
+
+def train_epoch(model):
+    for xb,yb in dl:
+        calc_grad(xb, yb, model)
+        opt.step()
+        opt.zero_grad()
+
+'''
+print(validate_epoch(linear_model))
+'''
+
+def train_model(model, epochs):
+    for i in range(epochs):
+        train_epoch(model)
+        print(validate_epoch(model), end=' ')
+    print()
+
+'''
+train_model(linear_model, 20)
+'''
+
+# using fastai libraries for sgd
+linear_model = nn.Linear(28*28, 1)
+opt = SGD(linear_model.parameters(), lr)
+'''
+train_model(linear_model, 20)
+'''
+
+# using fastai to further compress code to train
+dls = DataLoaders(dl, valid_dl)
+learn = Learner(dls, nn.Linear(28*28, 1), opt_func=SGD, loss_func=mnist_loss, metrics=batch_accuracy)
+learn.fit(10, lr=lr)

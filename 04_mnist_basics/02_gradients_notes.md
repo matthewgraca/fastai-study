@@ -86,6 +86,47 @@ At this point, the gradient tells us "where to go", but not "how far we should m
 What is the best rate to approach the minimum at? This is a question of what our 
 **learning rate** should be. 
 
+## Wait... why do we need a learning rate? Just set the gradient equal to zero, right?
+
+If you recall from your Calculus 101 course, we can find the minimums of a function by 
+- Finding the derivative
+- Setting the derivative equal to zero
+
+Like so:
+
+```math
+f(x) = x^2 + 5  \\
+f'(x) = 2x \\
+f'(x) = 2x = 0 \\
+```
+`f(x) has a minimum at x = 0`
+
+So if the goal is find the minimum loss, why bother with learning rates? Can't we just 
+analytically find the minimums of a function by setting its gradient equal to zero? 
+
+The answer is... yesn't.
+
+Fundamentally, something like `f(x) = x^2` is a toy problem - the kind of functions that 
+you will encounter are much more complicated; indeed, some may not even be differentiable 
+everywhere, and some may be so complex as to repel analytical solutions. Take
+
+```math
+x^7+x^3-5^2+e^x+log(x+x^2)+1/x=0
+```
+
+How do you solve for this analytically? (hint: you can't)
+
+Instead, you need to use numerical methods - an approximate computer method for 
+solving a mathematical problem which often has no analytical solution. 
+[[1]](https://www.sciencedirect.com/topics/engineering/numerical-method) 
+
+These involve iterative methods (in our case, gradient + learning rate), which may not 
+be the actual true answer, but gets you acceptably close. 
+
+You can learn more about why gradient descent is required: 
+- [Why gradient descent is required](https://stats.stackexchange.com/questions/212619/why-is-gradient-descent-required/212715#212715) 
+- [Cases where gradient descent outperforms the analytical solution](https://stats.stackexchange.com/questions/23128/solving-for-regression-parameters-in-closed-form-vs-gradient-descent/23132#23132)
+
 # End to End SGD Example
 Our goal here is to examine how finding a minimum of a loss function can be use to train a model 
 to fit data better. Source code of this end to end example is under `sgd.py`.

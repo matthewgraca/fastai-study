@@ -95,9 +95,11 @@ If you recall from your Calculus 101 course, we can find the minimums of a funct
 Like so:
 
 ```math
-f(x) = x^2 + 5  \\
-f'(x) = 2x \\
-f'(x) = 2x = 0 \\
+\begin{aligned}
+f(x) &= x^2 + 5  \\
+f'(x) &= 2x \\
+f'(x) &= 2x = 0 \\
+\end{aligned}
 ```
 `f(x) has a minimum at x = 0`
 

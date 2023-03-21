@@ -887,3 +887,76 @@ epoch     train_loss  valid_loss  batch_accuracy  time
 8         0.017919    0.233703    0.968812        00:00
 9         0.017185    0.227875    0.971287        00:00
 ```
+
+# Adding Nonlinear Layers
+
+Recall: what is a model? A model is a fundamentally a function. We take inputs and match 
+them to desired outputs. In the same way, "reality" is also a function where we map inputs 
+to their true outputs. The goal of the model is to get as close to this "reality" function 
+as possible.
+
+Our current model has one linear layer - this means that we can only approximate linear 
+functions - but reality is rarely simple to the point where such a function is sufficient. 
+As a result, we need a model that can approximate nonlinear functions as well - another 
+layer that can add curvature to our function.
+
+**But why not linear?** Surely a composition of linear functions can give better approximations? 
+Unfortunately, that is not the case. The reason why is because the composition of any two 
+linear functions is simply another linear function; that is, *composition preserves linearity*. 
+[[5]](https://www.statlect.com/matrix-algebra/composition-of-linear-maps) 
+No matter how complicated the function, with any arbitrary input, we will only have a linear 
+function.
+
+In our model, we have various layers that tune our function so it can best match reality - 
+and we've shown that linear functions are just too limited. In fact, linear functions are 
+so limited it can't even approximate XOR. [[6]](https://stats.stackexchange.com/a/366131) 
+Indeed, the *Universal Approximation Theorem* tells us that any continuous function f can be 
+modeled with a neural network with just one hidden layer and a sufficient amount of units. 
+But another condition of this theorem is that this hidden layer must be nonlinear. 
+[[7]](https://towardsdatascience.com/if-rectified-linear-units-are-linear-how-do-they-add-nonlinearity-40247d3e4792) 
+That is, if we want to model "reality", we're going to have to have a model that contains a 
+nonlinear hidden layer. 
+
+The function in this hidden layer is called an *activation function*. There are plenty we can 
+choose from: the familiar sigmoid, to the exotic tanh. However, there is another function 
+that is kind of linear, kind of not, but still fulfills the theorem: the Rectified Linear 
+Unit, or ReLU.
+
+```math
+\begin{equation}
+f(x)=x^{+}=max(0,x)=
+  \begin{cases}
+    x & \text{if } x > 0 \text{,}\\
+    0 & \text{otherwise.}
+  \end{cases}
+\end{equation}
+```
+
+```math
+\begin{equation}
+f'(x)=
+  \begin{cases}
+    1 & \text{if } x > 0 \text{,}\\
+    0 & \text{if } x < 0 \text{.}
+  \end{cases}
+\end{equation}
+```
+
+![relu_plot](images/relu.png)
+
+If you look at a plot of the ReLU function, it doesn't look like much - flat for negative 
+inputs, and linear for positive inputs. It seems like this isn't complicated enough to 
+model the complexities of reality. However, the power of ReLU is not what it can do alone, 
+but what it can represent as many. Much like how a binary value does nothing alone, many together 
+serve as the fundamental building blocks of computing. *ReLU is that fundamental building 
+block that, given enough units, can approximate any function*.
+
+But perhaps we put the cart before the horse; we know ReLU is good, but **why do we choose it over 
+other nonlinear functions** like sigmoid or tanh? Because it optimizes faster. Generally speaking, 
+nonlinear functions are more sophisticated, *including their gradient calculations*. This is the 
+grand advantage of ReLU; it's "curvy" enough to approximate nonlinear functions (given arbitrarily 
+many), but linear enough to make gradient calculations super simple. The time save is 
+dramatically large, that this function is worth it. 
+[[8]](https://datascience.stackexchange.com/questions/37079/how-can-relu-ever-fit-the-curve-of-x%c2%b2/37080#37080) 
+What you can do with ReLU in one hour would take tanh one month. 
+

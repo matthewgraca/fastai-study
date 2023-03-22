@@ -1078,3 +1078,43 @@ print(learn.recorder.values[-1][2])
 ```
 
 `0.9881188273429871`
+
+### Increasing Depth
+
+While two linear layers is nice, we can go further. Recall that the composition of linear 
+functions is just another linear function; so as long as we don't have linear layers that 
+are directly adjacent to each other, we're in the clear to add as many layers as we want. 
+
+The question arises: why bother going deeper? Didn't we just prove through the Universal 
+Approximation Theorem that one hidden nonlinear layer is sufficient to approximate any 
+function?
+
+True. But remember this was only the case for a sufficiently large amount of parameters. 
+The Universal Approximation Theorem also has variants - bounded depth and arbitrary width 
+(the one we just considered), and bounded width with arbitrary depth. What does that mean? 
+By adding more layers, we can reduce the amount of parameters necessary, and improve 
+the performance of our model and still be able to approximate any function. 
+That is, smaller matrices with many layers is more performant that larger matrices with fewer 
+layers in practice. We can do more training with less memory with this structure; indeed, 
+it is hard to find neural networks with only one hidden nonlinear layer nowadays.
+
+Now, we'll train an 18-layer model using the same approach in Chapter 1: 
+
+```python
+dls = ImageDataLoaders.from_folder(path)
+learn = vision_learner(dls, resnet18, pretrained=False, loss_func=F.cross_entropy, metrics=accuracy)
+learn.fit_one_cycle(1, 0.1)
+```
+
+```
+epoch     train_loss  valid_loss  accuracy  time    
+0         0.062832    0.014969    0.995584  00:06   
+```
+
+Don't sweat `fit_one_cycle()` too much; it basically analyzes the validation/test loss function 
+for clues on avoiding underfitting and overfitting, as well as increasing/decreasing the 
+learning rate/momentum to optimize training times. 
+[[10]](https://sgugger.github.io/the-1cycle-policy.html)
+
+Anyways, the point of this is we got something closs to 100% accuracy with only one epoch!
+

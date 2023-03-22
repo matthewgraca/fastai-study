@@ -397,8 +397,15 @@ simple_net = nn.Sequential(
     nn.Linear(30,1)
 )
 
+'''
 learn = Learner(dls, simple_net, opt_func=SGD, loss_func=mnist_loss, metrics=batch_accuracy)
 learn.fit(40, 0.1)
 plt.plot(L(learn.recorder.values).itemgot(2))
 plt.show()
 print(learn.recorder.values[-1][2])
+'''
+
+# example with many layers
+dls = ImageDataLoaders.from_folder(path)
+learn = vision_learner(dls, resnet18, pretrained=False, loss_func=F.cross_entropy, metrics=accuracy)
+learn.fit_one_cycle(1, 0.1)

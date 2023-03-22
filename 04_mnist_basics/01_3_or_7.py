@@ -193,8 +193,8 @@ print(mnist_loss(tensor([0.9,0.4,0.8]),trgts))
 
 # sigmoid
 def sigmoid(x): return 1/(1+torch.exp(-x))
-plot_function(torch.sigmoid, title='Sigmoid', min=-4, max=4)
 '''
+plot_function(torch.sigmoid, title='Sigmoid', min=-4, max=4)
 plt.show()
 '''
 
@@ -369,4 +369,36 @@ train_model(linear_model, 20)
 # using fastai to further compress code to train
 dls = DataLoaders(dl, valid_dl)
 learn = Learner(dls, nn.Linear(28*28, 1), opt_func=SGD, loss_func=mnist_loss, metrics=batch_accuracy)
+'''
 learn.fit(10, lr=lr)
+'''
+
+# adding nonlinear layers to neural net
+def simple_net(xb):
+    res = xb@w1 + b1
+    res = res.max(tensor(0.0))  # same as ReLU; all negative values are 0
+    res = res@w2 + b2
+    return res
+
+w1 = init_params((28*28, 1))
+b1 = init_params(30)
+w2 = init_params((30,1))
+b2 = init_params(1)
+
+'''
+plot_function(F.relu)
+plt.show()
+'''
+
+# doing the same with PyTorch instead
+simple_net = nn.Sequential(
+    nn.Linear(28*28,30),
+    nn.ReLU(),
+    nn.Linear(30,1)
+)
+
+learn = Learner(dls, simple_net, opt_func=SGD, loss_func=mnist_loss, metrics=batch_accuracy)
+learn.fit(40, 0.1)
+plt.plot(L(learn.recorder.values).itemgot(2))
+plt.show()
+print(learn.recorder.values[-1][2])
